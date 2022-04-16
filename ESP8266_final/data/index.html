@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+
+<style>
+    h1 span {
+        font-size: 0.6em;
+    }
+
+     body {
+        background-image: url('background2.jpeg');
+    } 
+
+    .types {
+        display: inline-block;
+        padding: 10px 30px;
+        border: 1px dotted;
+        margin-right: 20px;
+        overflow: hidden;
+        
+    }
+
+    .btn {
+        background-color: orange;
+        color: white;
+        border-radius: 10px;
+        border-width: 3px;
+        width: 100px;
+        height: 50px;
+        border-color: blue;
+        font-family: Tahoma, sans-serif;
+    }
+
+    .container {
+        height: 450px;
+        width: 250px;
+    }
+
+    .container>div {
+        float: left;
+    }
+
+    .control {
+        margin-right: 70px;
+    }
+</style>
+
+
+<head>
+    <title>RoundSlider - A sample demo</title>
+    <script src="jquery-1.11.3.min.js"></script>
+    <link href="roundslider.min.css" rel="stylesheet" />
+    <script src="roundslider.min.js"></script>
+</head>
+
+<body onload="init();" style="margin: 0; font-family: monospace;">
+    <canvas id="compass" width="200" height="200"></canvas>
+
+
+
+    <div style="position: absolute;top:0; right:250px" class="types">
+        <h3>Steering wheel</h3>
+
+        <div class="container">
+            <div class="control">
+                <div id="rd_slider_1"></div>
+
+
+                <h3>Drive</h3>
+
+                <br />
+                <button class="btn" onclick="FRW5()">Forw 5cm</button>
+                <br />
+                <button class="btn" onclick="FRW1()">Forw 1cm</button>
+                <br />
+                <br />
+                <button class="btn" onclick="RET1()">Ret 1cm</button>
+                <br />
+                <button class="btn" onclick="RET5()">Ret 5cm</button>
+                <br />
+                <progress class="progbar1" value="%Dist%" max="100" id="distBar">
+                    No progress bar
+                </progress>
+
+                <p>
+
+                    <span class="sensor-labels">Distance</span>
+                    <span id="Box_lidar_dist">%Dist%</span>
+
+                    <sup class="units">cm</sup>
+                    <br />
+                    <span class="sensor-labels">Direction</span>
+                    <span id="Box_comp_dir">%Deg%</span>
+                    <sup class="units">o</sup>
+
+                </p>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+    <script type="text/javascript">
+
+        //////////////////////////////////////////////////////////// JS start /////////////////////
+
+
+        // string variable from server/mega
+
+        var dire = 0;										// direction					  	 
+        var dist = 0;										// distance
+        var mode = 0;										// mode 1 = direction value 2=distance vale
+
+
+        var valx = document.getElementById("rd_slider_1").value;				// roundslider variable
+        var progressBar = document.getElementById("distBar");
+        //var dir_val = document.getElementById("Box_comp_dir"); 
+
+
+        setInterval(function ()									// timer inreval function	 
+        {
+            var xhttp = new XMLHttpRequest();
+
+            xhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    let resp = this.responseText;				//  input string from server c++/Mega
+
+                    let pos1 = resp.indexOf("+");
+                    let LID = resp.substring(0, pos1);
+                    let COM = resp.substring(pos1 + 1);
+                    let ival_com = parseInt(COM);
+                    let ival_lid = parseInt(LID);
+
+
+                    document.getElementById("Box_comp_dir").innerHTML = ival_com;
+                    document.getElementById("Box_lidar_dist").innerHTML = ival_lid;
+                    progressBar.setAttribute('value', ival_lid);
+                }
+            };
+
+            xhttp.open("GET", "/from_MEGA", true);							// request string from server
+            xhttp.send();
+
+        }, 500);											// Interval time 0.5 Sec
+
+
+
+
+        function httpGetAsync(callback)								// HTTP GET to send stw or drive values to C++
+        {
+            var xmlHttp = new XMLHttpRequest();
+
+            xmlHttp.onreadystatechange = function () {
+                if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                    callback(xmlHttp.responseText);
+            }
+
+            if (mode == 1) { xmlHttp.open("GET", '/?dire=' + dire, true); };			// send direction  TAG "dire"	true for asynchronous 
+            if (mode == 2) {
+                xmlHttp.open("GET", '/?dist=' + dist, true);
+
+            };			// send distance   TAG "dist"	true for asynchronous 
+            xmlHttp.send(null);
+        }
+
+
+
+        function tryme(param1)									// empty func	
+        { }
+
+
+
+
+
+        $(document).ready(function ()								// ready start 
+        {
+            $("#rd_slider_1").roundSlider							// define roundslider in JS
+                (
+                    {
+
+                        radius: 85,
+                        min: -180,
+                        max: 180,
+                        circleShape: "pie",
+                        sliderType: "min-range",
+
+                        value: 0,
+
+                        startAngle: 315,
+
+                        change: function (args) {
+
+                            dire = args.value;			 // direction variable set
+
+                            send_srw_val(dire);			 // call type_sl_val	
+
+                        }
+
+
+                    }
+
+                );
+
+        });											// ready ends
+
+
+
+        function send_srw_val(val)							// send stw value  
+        {
+
+            mode = 1;	 								// Steering wheel = mode 1
+            httpGetAsync(tryme);
+        }
+
+
+        function FRW5() 								// Send drive command 5cm
+        {
+
+            mode = 2;									// drive motors = mode 2
+            dist = 5; 									// drive distance
+            httpGetAsync(tryme);
+        }
+
+        function RET5() {
+
+            mode = 2;
+            dist = -5;
+            httpGetAsync(tryme);
+        }
+
+        function FRW1() {
+
+            mode = 2;
+            dist = 1;
+            httpGetAsync(tryme);
+        }
+
+        function RET1() {
+
+            mode = 2;
+            dist = -1;
+            httpGetAsync(tryme);
+        }
+
+
+        // Global variable
+        var img = null,
+            needle = null,
+            ctx = null,
+            degrees = 0;
+
+        function clearCanvas() {
+            // clear canvas
+            ctx.clearRect(0, 0, 200, 200);
+        }
+
+        function draw() {
+
+            clearCanvas();
+
+            // Draw the compass onto the canvas
+            ctx.drawImage(img, 0, 0);
+
+            // Save the current drawing state
+            ctx.save();
+
+            // Now move across and down half the 
+            ctx.translate(100, 100);
+
+
+            degrees = parseInt(document.getElementById("Box_comp_dir").innerHTML);
+            
+            // Rotate around this point
+            ctx.rotate(degrees * (Math.PI / 180));
+
+            // Draw the image back and up
+            ctx.drawImage(needle, -100, -100);
+
+            // Restore the previous drawing state
+            ctx.restore();
+
+            // Increment the angle of the needle by 5 degrees
+            //degrees += 5;
+            
+        }
+
+        function imgLoaded() {
+            // Image loaded event complete.  Start the timer
+            setInterval(draw, 100);
+        }
+
+        function init() {
+            // Grab the compass element
+            var canvas = document.getElementById('compass');
+
+            // Canvas supported?
+            if (canvas.getContext('2d')) {
+                ctx = canvas.getContext('2d');
+
+                // Load the needle image
+                needle = new Image();
+                needle.src = 'needle.png';
+
+                // Load the compass image
+                img = new Image();
+                img.src = 'compass.png';
+                img.onload = imgLoaded;
+            } else {
+                alert("Canvas not supported!");
+            }
+        }
+    
+
+///////////////////////////////////////////// JS END
+
+    </script>
+
+
+</body>
+
+</html>
